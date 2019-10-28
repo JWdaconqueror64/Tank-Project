@@ -1,0 +1,164 @@
+How to use the Radio transceivers.
+
+Radio transmitters can be incredibly useful for communication between two arduino boards. The transmitter this tutorial will be using is the nRF24l01 model and is fundamental for creating decent short to medium distance communication for arduino boards. This tutorial will cover how to use this device, when to use it over bluetooth and how to ensure it will work to its fullest extent. 
+
+The first thing you need to do to be able to use the radio transceiver is the nRF24I01 library which is designed to setup your arduino to automatically use the correct pins to read and write so you do not have to change them however this means that these pins cannot be changed. This library can be found here.
+
+The first step to using the radio transmitters is to wire them up in the correct fashion. To do this you first need to understand what each pin does and how you should use it correctly. 
+
+GND (ground): This is the wire that you connect to ground to allow the circuit to complete to help provide power to the transceiver.
+
+VCC (power input pin): This is where you attach the positive terminal to. The terminal must be the 3.3V terminal for any more and it can damage or destroy the transceiver.
+
+CE (Chip Enable): When it is enabled it allows the nRF34I01 to transmit or receive data.
+
+CSN (Chip Select Not): When the port is disabled it will listen in SPI ports for data and will then process the port information accordingly.
+
+SCK (Serial Clock): Accepts pulses created by the SPI ports.
+
+MOSI (Master Out Slave In): SPI input to the nRF34I01 transceiver.
+
+MISO (Master In Slave Out): SPI output from the nRF30I01 transceiver.
+
+IRQ: An interrupt pin which informs the master when new information is available. This pin is rarely used so it will most likely be left alone in most programs including this one.
+
+<img src="https://images.squarespace-cdn.com/content/v1/5cbf695de8ba44a28f6351f0/1558814103739-MRPYMK6JC3OP4HGVIQN4/ke17ZwdGBToddI8pDm48kCPkcddS2ZSYgSllepVjSmBZw-zPPgdn4jUwVcJE1ZvWQUxwkmyExglNqGp0IvTJZUJFbgE-7XRK3dMEBRBhUpyLnedjxnS9tQy6HJsdaAcWZsbtjHXNXW1chD_rpNjyX5mU8FWhRzx68OlASLhUYiw/Pinout-nRF24L01-PA-LNA-External-Antenna-Wireless-Transceiver-Module.png" width"600">
+
+To wire the transceiver up requires that specific pins remain free which means that only one can be installed per arduino. The power connects up to the 3.3V port and the ground connects to the ground port. Port 13 connect to SCK, port 12 connects to MISO, port 11 connects to MOSI, port 9 to CE and port 8 to CSN.
+
+To make these transceivers work, you first need to set up 2 different arduinos with the setup shown above. The first thing that needs to be done is to include all required libraries. These libraries automatically set up the transceiver program so you do not have to write it.
+
+
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
+
+
+Next it is required that you create some RF24 objects with the former being CE and the latter being CSN. this is done by using RF24 radio(CE, CSN).
+
+
+RF24 radio(9, 8);
+
+
+The final pre setup function that needs to be completed is to set up the radio address that the two arduinos are to communicate through using a constant byte. This byte must have 5 digits and can be anything between 00001 and 00125
+
+
+const byte address[6] = "00001";
+
+
+The setup loop for the receiver and the transmitter are similar with only a few changes to the function names. First to setup both you need to insert radio.begin to initiate the radio libraries. Then for the transmitter you will need to set the address with radio.openWritingPipe(address) to ensure it writes through the same frequency. Then to ensure it doesn’t pick up any external signals and to ensure it only writes, you need to implement radio.stopListening(). For the receiver, replace openWritingPipe with openReadingPipe and replace address with 0, address for its base reading state should be ground. Also replace stopListening with startListening. These receiver functions force it to listen to these frequencies without writing anything.
+
+
+Transmitter:
+radio.begin();
+
+radio.openWritingPipe(address);
+
+radio.stopListening();
+
+
+Receiver:
+radio.begin();
+  
+radio.openReadingPipe(0, address);
+
+radio.startListening();
+
+
+The radio transmitter sends information in packets. You do not need to know what is in these packets or how to send them for the library takes care of this for you. What you do need to know is that you have a limit of 32 bytes of information that can be sent over a single transmission. If you want a visualisation of the packets talked about, check the diagram below. 
+
+<img src="https://miro.medium.com/max/2599/1*TJCrfNmIwlNaWA2Uw-Jn7Q.png" width"600">
+
+To send this packet of information you need to use the function radio.write and sent the address as well as the size.
+
+
+radio.write(&text, sizeof(text));
+
+
+To receive this information will be more complicated. First you need to check if there is anything to read using radio.available and checking if it is true for this channel. You also need to ensure there is something to write the information down on using the same variable type you used earlier which is a character in this practice example using char[32] = {0} to create a list to work with. Then finally you need to write is using radio.read to read the address and size of the variable. 
+
+
+if (radio.available())
+{
+  char text[32] = {0};
+  radio.read(&text, sizeof(text));
+}
+
+
+The downsides to the radio transmitters mainly revolves around the complexity of the communicator, making it difficult to learn and test, with it. It also has a range limited to approximately 50 - 100m based on the specific circumstances. However RF can be a lot more useful than alternatives like bluetooth because unlike bluetooth it does not need a master controller for them all to communicate to and just communicates directly to another RF transceiver. This means that if you need many points to communicate to one another, bluetooth is the best one to do this with however for RC vehicles and similar applications, RF is the better option.
+
+In the end, if you follow this tutorial you should be able to understand how to use the nRF24l01 model of Radio Transceiver to an extent that allows you to be able to set it up with a lot of room for personal improvement through experimentation. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Full Example Codes:
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
+
+RF24 radio(9, 8);
+
+const byte address[6] = "00001";
+
+void setup()
+{
+  radio.begin();
+  
+  radio.openWritingPipe(address);
+  
+  radio.stopListening();
+}
+void loop()
+{
+  const char text[] = "Hello World";
+  radio.write(&text, sizeof(text));
+  
+  delay(1000);
+}
+
+
+
+
+
+
+
+
+
+
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
+
+RF24 radio(9, 8);  
+
+const byte address[6] = "00001";
+
+void setup()
+{
+  radio.begin();
+  
+  radio.openReadingPipe(0, address);
+  
+  radio.startListening();
+}
+
+void loop()
+{
+  if (radio.available())
+  {
+    char text[32] = {0};
+    radio.read(&text, sizeof(text));
+  }
+}
